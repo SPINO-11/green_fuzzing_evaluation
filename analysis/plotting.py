@@ -13,6 +13,12 @@
 # limitations under the License.
 """Plotting functions."""
 
+# pylint: disable=wrong-import-position
+import matplotlib
+
+matplotlib.use('Agg')
+# pylint: enable=wrong-import-position
+
 import numpy as np
 import Orange
 import seaborn as sns

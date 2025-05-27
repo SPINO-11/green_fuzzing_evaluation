@@ -19,6 +19,12 @@ from database.models import Snapshot
 import experiment.measurer.datatypes as measurer_datatypes
 from experiment.measurer import measure_manager
 
+from common import experiment_utils
+from database.utils import session_scope
+from database.models import Snapshot
+from database.models import Trial
+import datetime
+
 MEASUREMENT_TIMEOUT = 1
 logger = logs.Logger()  # pylint: disable=invalid-name
 
@@ -61,6 +67,37 @@ class BaseMeasureWorker:
                 request.fuzzer, request.benchmark, request.trial_id,
                 request.cycle, self.region_coverage)
             self.put_result_in_response_queue(measured_snapshot, request)
+
+####################################################################################################################
+            print(f"\n###################### {request.fuzzer}, {request.benchmark}, trial: {request.trial_id}, cycle: {request.cycle}, snap: {measured_snapshot}\n")
+            if measured_snapshot != None and request.cycle != 0 and request.cycle != 1:
+                time_before = experiment_utils.get_cycle_time(request.cycle - 1)
+                time_2before = experiment_utils.get_cycle_time(request.cycle - 2)
+                with session_scope() as session:
+                    snapshot_before = session.query(Snapshot).filter_by(time=time_before, trial_id=request.trial_id).first()
+                    snapshot_2before = session.query(Snapshot).filter_by(time=time_2before, trial_id=request.trial_id).first()
+                coverage_now = measured_snapshot.edges_covered
+                coverage_before = snapshot_before.edges_covered
+                coverage_2before = snapshot_2before.edges_covered
+                coverage_diff = coverage_now - coverage_before
+                coverage_diff_before = coverage_before - coverage_2before
+                print(f"cnow: {coverage_now}, cbefore: {coverage_before}, c2before: {coverage_2before}")
+                print(f"diff: {coverage_diff}, diff2: {coverage_diff_before}")
+                if coverage_diff < coverage_diff_before // 2:
+                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! This trial should break !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                    with session_scope() as session:
+                        print("im in and i should be")
+                        trial = session.query(Trial).filter_by(id=request.trial_id).first()
+                        print(f"trialdatabase: {trial}")
+                        trial.time_ended = datetime.utcnow()
+                        print("is it here???")
+                        trial.preempted = True
+                        print("setted")
+                        session.commit()
+                    print("!!!!BROKE!!!\n")
+                    break
+########################################################################################
+
             time.sleep(MEASUREMENT_TIMEOUT)
 
 
