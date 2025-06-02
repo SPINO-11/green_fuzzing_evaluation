@@ -20,7 +20,7 @@ import experiment.measurer.datatypes as measurer_datatypes
 from experiment.measurer import measure_manager
 
 from common import experiment_utils
-from database.utils import session_scope
+import database.utils as db_utils
 from database.models import Snapshot
 from database.models import Trial
 import datetime
@@ -73,7 +73,7 @@ class BaseMeasureWorker:
             if measured_snapshot != None and request.cycle != 0 and request.cycle != 1:
                 time_before = experiment_utils.get_cycle_time(request.cycle - 1)
                 time_2before = experiment_utils.get_cycle_time(request.cycle - 2)
-                with session_scope() as session:
+                with db_utils.session_scope() as session:
                     snapshot_before = session.query(Snapshot).filter_by(time=time_before, trial_id=request.trial_id).first()
                     snapshot_2before = session.query(Snapshot).filter_by(time=time_2before, trial_id=request.trial_id).first()
                 coverage_now = measured_snapshot.edges_covered
@@ -85,15 +85,15 @@ class BaseMeasureWorker:
                 print(f"diff: {coverage_diff}, diff2: {coverage_diff_before}")
                 if coverage_diff < coverage_diff_before // 2:
                     print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! This trial should break !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                    with session_scope() as session:
+                    with db_utils.session_scope() as session:
                         print("im in and i should be")
                         trial = session.query(Trial).filter_by(id=request.trial_id).first()
                         print(f"trialdatabase: {trial}")
-                        trial.time_ended = datetime.utcnow()
-                        print("is it here???")
-                        trial.preempted = True
-                        print("setted")
-                        session.commit()
+                    trial.time_ended = datetime.utcnow()
+                    print("is it here???")
+                    trial.preempted = True
+                    print("setted")
+                    db_utils.add_all([trial])
                     print("!!!!BROKE!!!\n")
                     break
 ########################################################################################
