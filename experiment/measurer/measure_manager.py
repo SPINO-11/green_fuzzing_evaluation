@@ -801,6 +801,9 @@ def measure_manager_loop(experiment: str,
             'request_queue': request_queue,
             'response_queue': response_queue,
             'region_coverage': region_coverage,
+#################################################################
+            'experiment': experiment,
+################################################################
         }
         local_measure_worker = measure_worker.LocalMeasureWorker(config)
 

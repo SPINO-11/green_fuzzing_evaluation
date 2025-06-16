@@ -24,5 +24,3 @@ report_filestore: /home/spino/ba/green_fuzzing_evaluation/report-data
 local_experiment: true
 
 snapshot_period: 60
-
-preemptible_runners: True

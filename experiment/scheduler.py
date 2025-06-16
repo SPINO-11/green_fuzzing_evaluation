@@ -34,6 +34,8 @@ from common import yaml_utils
 from database import models
 from database import utils as db_utils
 
+from greenfuzzing import greenhelper
+
 # Give the trial runner a little extra time to shut down and account for how
 # long it can take to actually start running once an instance is started. 5
 # minutes is an arbitrary amount of time.
@@ -557,8 +559,11 @@ def schedule(experiment_config: dict, pool, core_allocation=None):
     those that are possible."""
     logger.info('Finding trials to schedule.')
 
+###############################################################################################
     # End expired trials
     end_expired_trials(experiment_config, core_allocation)
+    #greenhelper.scheduler_end_expired_ended_trials(experiment_config, core_allocation, logger)
+###############################################################################################
 
     # Start pending trials.
     pending_trials = list(get_pending_trials(experiment_config['experiment']))
@@ -626,7 +631,10 @@ def schedule_loop(experiment_config: dict):
             # - We have not been able to start trials and still have some
             #   remaining. This can happen when we run out of instance quota.
             # In these cases, sleep before retrying again.
+####################################################################
             time.sleep(FAIL_WAIT_SECONDS)
+            #time.sleep(60)
+ #####################################################################
 
     logger.info('Finished scheduling.')
 

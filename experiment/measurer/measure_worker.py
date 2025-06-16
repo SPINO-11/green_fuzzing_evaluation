@@ -19,11 +19,7 @@ from database.models import Snapshot
 import experiment.measurer.datatypes as measurer_datatypes
 from experiment.measurer import measure_manager
 
-from common import experiment_utils
-import database.utils as db_utils
-from database.models import Snapshot
-from database.models import Trial
-import datetime
+from greenfuzzing import greenhelper
 
 MEASUREMENT_TIMEOUT = 1
 logger = logs.Logger()  # pylint: disable=invalid-name
@@ -37,6 +33,9 @@ class BaseMeasureWorker:
         self.request_queue = config['request_queue']
         self.response_queue = config['response_queue']
         self.region_coverage = config['region_coverage']
+########################################################
+        self.experiment = config['experiment']
+########################################################
 
     def get_task_from_request_queue(self):
         """"Get task from request queue"""
@@ -69,33 +68,9 @@ class BaseMeasureWorker:
             self.put_result_in_response_queue(measured_snapshot, request)
 
 ####################################################################################################################
-            print(f"\n###################### {request.fuzzer}, {request.benchmark}, trial: {request.trial_id}, cycle: {request.cycle}, snap: {measured_snapshot}\n")
-            if measured_snapshot != None and request.cycle != 0 and request.cycle != 1:
-                time_before = experiment_utils.get_cycle_time(request.cycle - 1)
-                time_2before = experiment_utils.get_cycle_time(request.cycle - 2)
-                with db_utils.session_scope() as session:
-                    snapshot_before = session.query(Snapshot).filter_by(time=time_before, trial_id=request.trial_id).first()
-                    snapshot_2before = session.query(Snapshot).filter_by(time=time_2before, trial_id=request.trial_id).first()
-                coverage_now = measured_snapshot.edges_covered
-                coverage_before = snapshot_before.edges_covered
-                coverage_2before = snapshot_2before.edges_covered
-                coverage_diff = coverage_now - coverage_before
-                coverage_diff_before = coverage_before - coverage_2before
-                print(f"cnow: {coverage_now}, cbefore: {coverage_before}, c2before: {coverage_2before}")
-                print(f"diff: {coverage_diff}, diff2: {coverage_diff_before}")
-                if coverage_diff < coverage_diff_before // 2:
-                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! This trial should break !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                    with db_utils.session_scope() as session:
-                        print("im in and i should be")
-                        trial = session.query(Trial).filter_by(id=request.trial_id).first()
-                        print(f"trialdatabase: {trial}")
-                    trial.time_ended = datetime.utcnow()
-                    print("is it here???")
-                    trial.preempted = True
-                    print("setted")
-                    db_utils.add_all([trial])
-                    print("!!!!BROKE!!!\n")
-                    break
+            if greenhelper.measure_worker_test_should_break(measured_snapshot, request, logger, self.experiment):
+                print(f"broke trial: {request.trial_id}")
+                #break
 ########################################################################################
 
             time.sleep(MEASUREMENT_TIMEOUT)

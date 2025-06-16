@@ -47,3 +47,7 @@ docker/generated.mk
 
 # Diff files from matplotlib
 *-failed-diff.png
+
+
+# done experiments
+done_experiments

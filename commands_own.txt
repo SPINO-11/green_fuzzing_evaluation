@@ -9,13 +9,19 @@ tmux list-session: Zeigt alle aktiven Sitzungen an
 tmux kill-session -t name: Beendet die Sitzung mit dem Namen
 tmux rename-session -t alterName neuerName
 
+
+
 PYTHONPATH=. python3 experiment/run_experiment.py \
 --experiment-config experiment-config.yaml \
 --benchmarks freetype2_ftfuzzer bloaty_fuzz_target \
 --experiment-name testeval \
 --fuzzers afl libfuzzer
 
+source .venv/bin/activate
+
 PYTHONPATH=. python3 experiment/run_experiment.py -c experiment-config.yaml -b freetype2_ftfuzzer bloaty_fuzz_target -e testimpl -f afl libfuzzer -a
+
+
 
 htop
 df -h
@@ -28,6 +34,8 @@ docker rm Name
 docker image prune -f
 docker image prune -a -f
 docker builder prune -f
+
+
 
 tmux kill-session -t 0
 docker stop $(docker ps -q)
