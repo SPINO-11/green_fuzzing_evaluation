@@ -23,6 +23,7 @@ from sqlalchemy import Integer
 from sqlalchemy import JSON
 from sqlalchemy import String
 from sqlalchemy import UnicodeText
+from sqlalchemy import LargeBinary
 
 Base = declarative.declarative_base()  # pylint: disable=invalid-name
 
@@ -95,3 +96,15 @@ class Crash(Base):
 
     __table_args__ = (ForeignKeyConstraint(
         [time, trial_id], ['snapshot.time', 'snapshot.trial_id']),)
+
+
+
+
+#######################################################################
+class Coverage_Matrix_DB(Base):
+    __tablename__ = 'coverage_matrix'
+    trial = Column(Integer, primary_key = True)
+    matrix = Column(LargeBinary)
+    cycle = Column(Integer)
+    all_branches = Column(Integer)
+########################################################################

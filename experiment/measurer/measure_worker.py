@@ -62,17 +62,15 @@ class BaseMeasureWorker:
                 'Measurer worker: Got request %s %s %d %d from request queue',
                 request.fuzzer, request.benchmark, request.trial_id,
                 request.cycle)
-            measured_snapshot = measure_manager.measure_snapshot_coverage(
+#######################################################################################
+            measured_snapshot, branches = measure_manager.measure_snapshot_coverage(
                 request.fuzzer, request.benchmark, request.trial_id,
                 request.cycle, self.region_coverage)
-            self.put_result_in_response_queue(measured_snapshot, request)
-
-####################################################################################################################
-            if greenhelper.measure_worker_test_should_break(measured_snapshot, request, logger, self.experiment):
-                print(f"broke trial: {request.trial_id}")
-                #break
+            
+            #greenhelper.measure_worker_test_should_break(measured_snapshot, request, self.experiment)
+            greenhelper.coverage_rate_helper(request.cycle, request.trial_id, measured_snapshot, branches, self.experiment)
 ########################################################################################
-
+            self.put_result_in_response_queue(measured_snapshot, request)
             time.sleep(MEASUREMENT_TIMEOUT)
 
 

@@ -602,7 +602,9 @@ def measure_snapshot_coverage(  # pylint: disable=too-many-locals
                           corpus_archive_dst,
                           expect_zero=False).retcode:
         snapshot_logger.warning('Corpus not found for cycle: %d.', cycle)
-        return None
+#############################################
+        return (None, None)
+#############################################
 
     snapshot_measurer.initialize_measurement_dirs()
     snapshot_measurer.extract_corpus(corpus_archive_dst)
@@ -634,7 +636,9 @@ def measure_snapshot_coverage(  # pylint: disable=too-many-locals
                           coverage_archive_dst,
                           expect_zero=False).retcode:
         snapshot_logger.warning('Coverage not found for cycle: %d.', cycle)
-        return None
+#############################################
+        return (None, None)
+#############################################
 
     os.remove(coverage_archive_zipped)  # no reason to keep this around
 
@@ -653,7 +657,9 @@ def measure_snapshot_coverage(  # pylint: disable=too-many-locals
     measuring_time = round(time.time() - measuring_start_time, 2)
     snapshot_logger.info('Measured cycle: %d in %f seconds.', cycle,
                          measuring_time)
-    return snapshot
+############################################################################
+    return (snapshot, coverage_utils.extract_covered_branches_from_summary_json(snapshot_measurer.cov_summary_file))
+############################################################################
 
 
 def set_up_coverage_binaries(pool, experiment):
