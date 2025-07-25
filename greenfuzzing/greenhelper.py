@@ -11,20 +11,28 @@ import random
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
+
+# parameters for the estimators
 ALPHA = 0
 BETA = 0
 
 
+
+# Class which consists of a coverage matrix 
 class Coverage_Matrix:
     def __init__(self):
         self.matrix = []
         self.all_branches = []
 
+    # insert the branches for the very first cycle
+    # called from outside
     def init_first_cycle(self, branches):
         for branch in branches:
             self.all_branches.append(branch)
             self.matrix.append([1])
 
+    # insert a branch which is not already in the coverage matrix
+    # called from insert_new_cycle
     def insert_new_branch(self, branch):
         self.all_branches.append(branch)
         self.matrix.append([])
@@ -32,6 +40,8 @@ class Coverage_Matrix:
             self.matrix[len(self.matrix) - 1].append(0)
         self.matrix[len(self.matrix) - 1].append(1)
 
+    # insert the branches of a cycle which is not the first one
+    # called from outside
     def insert_new_cycle(self, branches):
         for b in range(len(self.matrix)):
             self.matrix[b].append(0)
@@ -41,6 +51,8 @@ class Coverage_Matrix:
                 continue
             self.matrix[self.all_branches.index(branch)][len(self.matrix[0]) - 1] = 1
     
+    # compute and return the number of singletons and doubletons in the whole coverage matrix
+    # called from the outside
     def get_number_singletons_doubletons(self):
         singletons = 0
         doubletons = 0
@@ -52,7 +64,9 @@ class Coverage_Matrix:
                 doubletons += 1
         return (singletons, doubletons)
     
-    def get_number_singletons_doubletons_in_indexes(self, indexes):
+    # compute and return the number of singletons and doubletons in ranch which is given through a list of all indexes in the range
+    # called from the outside
+    def get_number_singletons_doubletons_in_range(self, indexes):
         singletons = 0
         doubletons = 0
         for branch in self.matrix:
@@ -70,6 +84,15 @@ class Coverage_Matrix:
     
 
 
+# extrapolate the coverage rate for t0+m*t0 with the whole greybox-estimator given by the paper
+# called from the coverage_rate_helper
+def greybox_estimator(matrix, t0, m):
+    return 0
+    
+
+
+# extrapolate the coverage rate for t0+m*t0 with the estimator given by the paper just using one large blackbox estimator instead of some many small ones
+# called from the coverage_rate_helper
 def blackbox_estimator(matrix, t0, m):
     all_estimations = []
     all_indexes = []
@@ -78,7 +101,7 @@ def blackbox_estimator(matrix, t0, m):
     random.shuffle(all_indexes)
     print("###shuffled all indexes", all_indexes)
     for j in range(1, len(all_indexes) + 1):
-        singletons, doubletons = matrix.get_number_singletons_doubletons_in_indexes(all_indexes[0:j])
+        singletons, doubletons = matrix.get_number_singletons_doubletons_in_range(all_indexes[0:j])
         try:
             estimation = singletons / j * (((j-1) * singletons) / ((j-1) * singletons + 2 * doubletons))
         except:
@@ -105,6 +128,9 @@ def blackbox_estimator(matrix, t0, m):
     return u
 
 
+
+# stops the docker of a particular trial to stop the experiment further
+# called from the coverage_rate_helper
 def end_docker_trial(experiment, trial_id):
     if not experiment_utils.is_local_experiment():
         return
@@ -112,51 +138,68 @@ def end_docker_trial(experiment, trial_id):
     subprocess.run(["docker", "stop", name], check=True)
 
 
+
+# adds new cycles to the coverage matrix and compute the coverage_rates with blackbox or greybox estimator and stop a trial if it not reach a certain threshold
+# called from experiment/measurer/measure_worker.py in measure_worker_loop()
 def coverage_rate_helper(cycle, trial, snapshot, branches, experiment):
+    # if there are no data nothing to be done
     if snapshot == None:
         return
     
+    # if its the first cycle, create new Coverage_Matrix object fill it with the branches and save it in the Coverage_Matrix_DB
     if cycle == 0:
-        matrix = Coverage_Matrix()
-        matrix.init_first_cycle(branches)
-        pickled = pickle.dumps(matrix)
-        entry = Coverage_Matrix_DB(trial=trial, matrix=pickled, cycle=cycle, all_branches=len(matrix.all_branches))
+        cov_mat = Coverage_Matrix()
+        cov_mat.init_first_cycle(branches)
+        pickled = pickle.dumps(cov_mat)
+        entry = Coverage_Matrix_DB(trial=trial, coverage_matrix=pickled, cycle=cycle, all_branches=len(cov_mat.all_branches))
         db_utils.add_all([entry])
         return
     
+    # if its not the first cycle, it gets the entry from the Coverage_Matrix_DB, loads the coverage matrix, enters the new branches and save it again in the database
     with db_utils.session_scope() as session:
         entry = session.query(Coverage_Matrix_DB).filter_by(trial=trial).first()
-    matrix = pickle.loads(entry.matrix)
-    matrix.insert_new_cycle(branches)
-    pickled = pickle.dumps(matrix)
-    entry.matrix = pickled
+    cov_mat = pickle.loads(entry.coverage_matrix)
+    cov_mat.insert_new_cycle(branches)
+    pickled = pickle.dumps(cov_mat)
+    entry.coverage_matrix = pickled
     entry.cycle = cycle
-    entry.all_branches = len(matrix.all_branches)
+    entry.all_branches = len(cov_mat.all_branches)
     db_utils.add_all([entry])
-    print("### before coverage rate")
-    coverage_rate = blackbox_estimator(matrix, len(matrix.matrix[0]), 1)
-    #if coverage_rate < 0:
-    #    end_docker_trial(experiment, trial)
 
-    print(f"###", len(matrix.all_branches))
-    print(f"### coverage_rate: {coverage_rate} for point t+1*t with t: {cycle}")
-    #print(matrix.matrix)
+    # compute the coverage_rate with the estimators
+    m = 1
+    coverage_rate_b = blackbox_estimator(cov_mat, cycle + 1, m)
+    coverage_rate_g = greybox_estimator(cov_mat, cycle + 1, m)
 
+    print(f"### trial: {trial}, cycle: {cycle}, predicted_cycle: {cycle + m * cycle}, coverage_rate_blackbox: {coverage_rate_b}, coverage_rate_greybox: {coverage_rate_g}, all_branches: {len(cov_mat.all_branches)}")
 
-
-
-
-
-
-
-
+    # stops the trial if the coverage rate falls beneath a certain threshold
+#    if coverage_rate_b < 0 and coverage_rate_g < 0:
+#        with db_utils.session_scope() as session:
+#            trial = session.query(Trial).filter_by(id=trial).first()
+#        trial.time_ended = datetime.datetime.now(datetime.timezone.utc)
+#        db_utils.add_all([trial])
+#        end_docker_trial(experiment, trial)
 
 
-
-
+    
+    
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+##################################################################################################################################
 
 # used in experiment/measurer/measure_worker.py/measure_worker_loop(self)
 def measure_worker_test_should_break(measured_snapshot, request, experiment):
@@ -186,21 +229,6 @@ def measure_worker_test_should_break(measured_snapshot, request, experiment):
         return True
     
     return False
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
