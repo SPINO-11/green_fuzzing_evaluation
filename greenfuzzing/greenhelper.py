@@ -13,8 +13,8 @@ from sklearn.linear_model import LinearRegression
 
 
 # parameters for the estimators
-ALPHA = 0
-BETA = 0
+ALPHA = 0.7
+BETA = 0.5
 
 
 
@@ -86,46 +86,90 @@ class Coverage_Matrix:
 
 # extrapolate the coverage rate for t0+m*t0 with the whole greybox-estimator given by the paper
 # called from the coverage_rate_helper
-def greybox_estimator(matrix, t0, m):
-    return 0
+def greybox_estimator(cov_mat, t0, m):
+    all_estimations = []
+
+    # line 2 - 6: get increasing start and end index for blackbox estimator
+    for i in range(1, t0 + 1):
+        sa = int(i ** (1 - ALPHA))
+        ea = i
+        if sa == ea:
+            continue
+    
+        # line 7 - 8: get all indexes from the blackbox range and shuffle them
+        all_indexes = []
+        for k in range(sa, ea + 1):
+            all_indexes.append(k)
+        random.shuffle(all_indexes)
+        
+        # line 9 - 14: go over increasing indexes and get singletons and doubletons for these indexes and estimate the coverage
+        for j in range(1, ea - sa + 1):
+            singletons, doubletons = cov_mat.get_number_singletons_doubletons_in_range(all_indexes[0:j])
+            try:
+                estimation = (singletons / j) * (((j-1) * singletons) / ((j-1) * singletons + 2 * doubletons))
+            except:
+                estimation = 0
+            if estimation == 0:
+                estimation = 1e-6
+            all_estimations.append((sa + j, estimation))
+    
+    # line 15 - 19: get start and end regression points and get extrapolation with linear regression
+    if len(all_estimations) == 0:
+        return 0
+    sb = int(t0 ** (1 - BETA))
+    eb = t0
+    time_vals = []
+    estimation_vals = []
+    for k in range(len(all_estimations)):
+        if all_estimations[k][0] >= sb and all_estimations[k][0] <= eb:
+            time_vals.append(all_estimations[k][0])
+            estimation_vals.append(all_estimations[k][1])
+    log_time = np.log(time_vals).reshape(-1, 1)
+    log_estimation = np.log(estimation_vals)
+    model = LinearRegression()
+    model.fit(log_time, log_estimation)
+    u = np.exp(model.predict(np.log(t0 + m * t0).reshape(-1, 1)))
+    return u[0]
     
 
 
 # extrapolate the coverage rate for t0+m*t0 with the estimator given by the paper just using one large blackbox estimator instead of some many small ones
 # called from the coverage_rate_helper
-def blackbox_estimator(matrix, t0, m):
+def blackbox_estimator(cov_mat, t0, m):
     all_estimations = []
+
+    # line 7 - 8: get all indexes and shuffle them up
     all_indexes = []
-    for i in range(len(matrix.matrix[0])):
-        all_indexes.append(i)
+    for k in range(t0 + 1):
+        all_indexes.append(k)
     random.shuffle(all_indexes)
-    print("###shuffled all indexes", all_indexes)
-    for j in range(1, len(all_indexes) + 1):
-        singletons, doubletons = matrix.get_number_singletons_doubletons_in_range(all_indexes[0:j])
+    
+    # line 9 - 14: go over increasing indexes and get singletons and doubletons for these indexes and estimate the coverage
+    for j in range(1, t0 + 1):
+        singletons, doubletons = cov_mat.get_number_singletons_doubletons_in_range(all_indexes[0:j])
         try:
-            estimation = singletons / j * (((j-1) * singletons) / ((j-1) * singletons + 2 * doubletons))
+            estimation = (singletons / j) * (((j-1) * singletons) / ((j-1) * singletons + 2 * doubletons))
         except:
-            continue
-        all_estimations.append((j-1, estimation))
-    print("### got all estimations", all_estimations)
-    #reg_start = 0 # potentially with beta
-    #reg_end = t0
-    #if len(all_estimations) < reg_end:
-    #    reg_end = len(all_estimations)
-    u_vals = []
-    t_vals = []
-    for i in range(len(all_estimations)):
-        print(i)
-        t_vals.append(all_estimations[i][0])
-        u_vals.append(all_estimations[i][1])
-    log_t = np.log(t_vals).reshape(-1, 1)
-    log_u = np.log(u_vals)
-    print("### before model")
+            estimation = 0
+        if estimation == 0:
+            estimation = 1e-6
+        all_estimations.append((j, estimation))
+    
+    # line 15 - 19: get start and end regression points and get extrapolation with linear regression
+    sb = int(t0 ** (1 - BETA))
+    eb = t0
+    time_vals = []
+    estimation_vals = []
+    for k in range(len(all_estimations)):
+        if all_estimations[k][0] >= sb and all_estimations[k][0] <= eb:
+            time_vals.append(all_estimations[k][0])
+            estimation_vals.append(all_estimations[k][1])
+    log_time = np.log(time_vals).reshape(-1, 1)
+    log_estimation = np.log(estimation_vals)
     model = LinearRegression()
-    model.fit(log_t, log_u)
-    print("### predict!!!")
+    model.fit(log_time, log_estimation)
     u = np.exp(model.predict(np.log(t0 + m * t0).reshape(-1, 1)))
-    return u
+    return u[0]
 
 
 
@@ -168,12 +212,12 @@ def coverage_rate_helper(cycle, trial, snapshot, branches, experiment):
 
     # compute the coverage_rate with the estimators
     m = 1
-    coverage_rate_b = blackbox_estimator(cov_mat, cycle + 1, m)
-    coverage_rate_g = greybox_estimator(cov_mat, cycle + 1, m)
+    coverage_rate_b = blackbox_estimator(cov_mat, cycle, m)
+    coverage_rate_g = greybox_estimator(cov_mat, cycle, m)
 
-    print(f"### trial: {trial}, cycle: {cycle}, predicted_cycle: {cycle + m * cycle}, coverage_rate_blackbox: {coverage_rate_b}, coverage_rate_greybox: {coverage_rate_g}, all_branches: {len(cov_mat.all_branches)}")
+    print(f"### trial: {trial}, cycle: {cycle}, predicted_cycle: {cycle + m * cycle}, coverage_rate_blackbox: {coverage_rate_b}, coverage_rate_greybox: {coverage_rate_g}, num_all_branches: {len(cov_mat.all_branches)}, snapshot_branches: {snapshot.edges_covered}, diff_branches: {snapshot.edges_covered - len(cov_mat.all_branches)}")
 
-    # stops the trial if the coverage rate falls beneath a certain threshold
+#    # stops the trial if the coverage rate falls beneath a certain threshold
 #    if coverage_rate_b < 0 and coverage_rate_g < 0:
 #        with db_utils.session_scope() as session:
 #            trial = session.query(Trial).filter_by(id=trial).first()

@@ -3,7 +3,8 @@ trials: 1
 
 # The amount of time in seconds that each trial is run for.
 # 1 day = 24 * 60 * 60 = 86400
-max_total_time: 900
+#max_total_time: 900
+max_total_time: 3600
 
 # The location of the docker registry.
 # FIXME: Support custom docker registry.
@@ -23,4 +24,5 @@ report_filestore: /home/spino/ba/green_fuzzing_evaluation/report-data
 # Flag that indicates this is a local experiment.
 local_experiment: true
 
-snapshot_period: 60
+#snapshot_period: 60
+snapshot_period: 300
