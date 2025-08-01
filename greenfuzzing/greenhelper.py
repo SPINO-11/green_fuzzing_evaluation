@@ -110,7 +110,7 @@ def greybox_estimator(cov_mat, t0, m):
             except:
                 estimation = 0
             if estimation == 0:
-                estimation = 1e-6
+                estimation = 1e-12
             all_estimations.append((sa + j, estimation))
     
     # line 15 - 19: get start and end regression points and get extrapolation with linear regression
@@ -130,11 +130,24 @@ def greybox_estimator(cov_mat, t0, m):
     model.fit(log_time, log_estimation)
     u = np.exp(model.predict(np.log(t0 + m * t0).reshape(-1, 1)))
     return u[0]
-    
+
+
+
+# an estimator for the t+1-th cycle and uses the whole coverage matrix
+# called from the coverage_rate_helper
+def estimator(cov_mat, t):
+    singletons, doubletons = cov_mat.get_number_singletons_doubletons()
+    try:
+        estimation = (singletons / t) * (((t-1) * singletons) / ((t-1) * singletons + 2 * doubletons))
+    except:
+        estimation = 0
+    return estimation
+
 
 
 # extrapolate the coverage rate for t0+m*t0 with the estimator given by the paper just using one large blackbox estimator instead of some many small ones
 # called from the coverage_rate_helper
+# do not use !!! false implementation estimator ist the right one
 def blackbox_estimator(cov_mat, t0, m):
     all_estimations = []
 
@@ -152,7 +165,7 @@ def blackbox_estimator(cov_mat, t0, m):
         except:
             estimation = 0
         if estimation == 0:
-            estimation = 1e-6
+            estimation = 1e-12
         all_estimations.append((j, estimation))
     
     # line 15 - 19: get start and end regression points and get extrapolation with linear regression
@@ -212,7 +225,7 @@ def coverage_rate_helper(cycle, trial, snapshot, branches, experiment):
 
     # compute the coverage_rate with the estimators
     m = 1
-    coverage_rate_b = blackbox_estimator(cov_mat, cycle, m)
+    coverage_rate_b = estimator(cov_mat, cycle)
     coverage_rate_g = greybox_estimator(cov_mat, cycle, m)
 
     print(f"### trial: {trial}, cycle: {cycle}, predicted_cycle: {cycle + m * cycle}, coverage_rate_blackbox: {coverage_rate_b}, coverage_rate_greybox: {coverage_rate_g}, num_all_branches: {len(cov_mat.all_branches)}, snapshot_branches: {snapshot.edges_covered}, diff_branches: {snapshot.edges_covered - len(cov_mat.all_branches)}")
