@@ -13,7 +13,7 @@ from sklearn.linear_model import LinearRegression
 
 
 # parameters for the estimators
-ALPHA = 0.7
+ALPHA = 0.11
 BETA = 0.5
 
 
@@ -105,17 +105,12 @@ def greybox_estimator(cov_mat, t0, m):
         # line 9 - 14: go over increasing indexes and get singletons and doubletons for these indexes and estimate the coverage
         for j in range(1, ea - sa + 1):
             singletons, doubletons = cov_mat.get_number_singletons_doubletons_in_range(all_indexes[0:j])
-            try:
-                estimation = (singletons / j) * (((j-1) * singletons) / ((j-1) * singletons + 2 * doubletons))
-            except:
-                estimation = 0
-            if estimation == 0:
-                estimation = 1e-12
-            all_estimations.append((sa + j, estimation))
+            singletons += 1
+            doubletons += 1
+            estimation = (singletons / j) * (((j-1) * singletons) / ((j-1) * singletons + 2 * doubletons))
+            all_estimations.append((sa + j - 1, estimation))
     
     # line 15 - 19: get start and end regression points and get extrapolation with linear regression
-    if len(all_estimations) == 0:
-        return 0
     sb = int(t0 ** (1 - BETA))
     eb = t0
     time_vals = []
@@ -124,6 +119,8 @@ def greybox_estimator(cov_mat, t0, m):
         if all_estimations[k][0] >= sb and all_estimations[k][0] <= eb:
             time_vals.append(all_estimations[k][0])
             estimation_vals.append(all_estimations[k][1])
+    if len(time_vals) < 2:
+        return None
     log_time = np.log(time_vals).reshape(-1, 1)
     log_estimation = np.log(estimation_vals)
     model = LinearRegression()
@@ -135,54 +132,12 @@ def greybox_estimator(cov_mat, t0, m):
 
 # an estimator for the t+1-th cycle and uses the whole coverage matrix
 # called from the coverage_rate_helper
-def estimator(cov_mat, t):
+def blackbox_estimator(cov_mat, t):
     singletons, doubletons = cov_mat.get_number_singletons_doubletons()
-    try:
-        estimation = (singletons / t) * (((t-1) * singletons) / ((t-1) * singletons + 2 * doubletons))
-    except:
-        estimation = 0
+    singletons += 1
+    doubletons += 1
+    estimation = (singletons / t) * (((t-1) * singletons) / ((t-1) * singletons + 2 * doubletons))
     return estimation
-
-
-
-# extrapolate the coverage rate for t0+m*t0 with the estimator given by the paper just using one large blackbox estimator instead of some many small ones
-# called from the coverage_rate_helper
-# do not use !!! false implementation estimator ist the right one
-def blackbox_estimator(cov_mat, t0, m):
-    all_estimations = []
-
-    # line 7 - 8: get all indexes and shuffle them up
-    all_indexes = []
-    for k in range(t0 + 1):
-        all_indexes.append(k)
-    random.shuffle(all_indexes)
-    
-    # line 9 - 14: go over increasing indexes and get singletons and doubletons for these indexes and estimate the coverage
-    for j in range(1, t0 + 1):
-        singletons, doubletons = cov_mat.get_number_singletons_doubletons_in_range(all_indexes[0:j])
-        try:
-            estimation = (singletons / j) * (((j-1) * singletons) / ((j-1) * singletons + 2 * doubletons))
-        except:
-            estimation = 0
-        if estimation == 0:
-            estimation = 1e-12
-        all_estimations.append((j, estimation))
-    
-    # line 15 - 19: get start and end regression points and get extrapolation with linear regression
-    sb = int(t0 ** (1 - BETA))
-    eb = t0
-    time_vals = []
-    estimation_vals = []
-    for k in range(len(all_estimations)):
-        if all_estimations[k][0] >= sb and all_estimations[k][0] <= eb:
-            time_vals.append(all_estimations[k][0])
-            estimation_vals.append(all_estimations[k][1])
-    log_time = np.log(time_vals).reshape(-1, 1)
-    log_estimation = np.log(estimation_vals)
-    model = LinearRegression()
-    model.fit(log_time, log_estimation)
-    u = np.exp(model.predict(np.log(t0 + m * t0).reshape(-1, 1)))
-    return u[0]
 
 
 
@@ -225,7 +180,7 @@ def coverage_rate_helper(cycle, trial, snapshot, branches, experiment):
 
     # compute the coverage_rate with the estimators
     m = 1
-    coverage_rate_b = estimator(cov_mat, cycle)
+    coverage_rate_b = blackbox_estimator(cov_mat, cycle)
     coverage_rate_g = greybox_estimator(cov_mat, cycle, m)
 
     print(f"### trial: {trial}, cycle: {cycle}, predicted_cycle: {cycle + m * cycle}, coverage_rate_blackbox: {coverage_rate_b}, coverage_rate_greybox: {coverage_rate_g}, num_all_branches: {len(cov_mat.all_branches)}, snapshot_branches: {snapshot.edges_covered}, diff_branches: {snapshot.edges_covered - len(cov_mat.all_branches)}")
