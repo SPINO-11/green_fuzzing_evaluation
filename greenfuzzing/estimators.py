@@ -22,7 +22,7 @@ def greybox_estimator(cov_mat, t0, m, alpha, beta):
         random.shuffle(all_indexes)
         
         # line 9 - 14: go over increasing indexes and get singletons and doubletons for these indexes and estimate the coverage
-        for j in range(1, ea - sa + 1):
+        for j in range(2, ea - sa + 1):
             singletons, doubletons = cov_mat.get_number_singletons_doubletons_in_range(all_indexes[0:j])
             singletons += 1
             doubletons += 1
@@ -52,6 +52,8 @@ def greybox_estimator(cov_mat, t0, m, alpha, beta):
 # an estimator for the t+1-th cycle and uses the whole coverage matrix
 # called from the coverage_rate_helper
 def blackbox_estimator(cov_mat, t):
+    if t < 2:
+        return None
     singletons, doubletons = cov_mat.get_number_singletons_doubletons()
     singletons += 1
     doubletons += 1
