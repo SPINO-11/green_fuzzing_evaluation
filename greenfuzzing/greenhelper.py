@@ -7,137 +7,13 @@ import datetime
 from experiment import scheduler
 import subprocess
 import pickle
-import random
-import numpy as np
-from sklearn.linear_model import LinearRegression
+from greenfuzzing import coverage_matrix
+from greenfuzzing import estimators
 
 
 # parameters for the estimators
 ALPHA = 0.11
 BETA = 0.5
-
-
-
-# Class which consists of a coverage matrix 
-class Coverage_Matrix:
-    def __init__(self):
-        self.matrix = []
-        self.all_branches = []
-
-    # insert the branches for the very first cycle
-    # called from outside
-    def init_first_cycle(self, branches):
-        for branch in branches:
-            self.all_branches.append(branch)
-            self.matrix.append([1])
-
-    # insert a branch which is not already in the coverage matrix
-    # called from insert_new_cycle
-    def insert_new_branch(self, branch):
-        self.all_branches.append(branch)
-        self.matrix.append([])
-        for i in range(len(self.matrix[0]) - 1):
-            self.matrix[len(self.matrix) - 1].append(0)
-        self.matrix[len(self.matrix) - 1].append(1)
-
-    # insert the branches of a cycle which is not the first one
-    # called from outside
-    def insert_new_cycle(self, branches):
-        for b in range(len(self.matrix)):
-            self.matrix[b].append(0)
-        for branch in branches:
-            if not branch in self.all_branches:
-                self.insert_new_branch(branch)
-                continue
-            self.matrix[self.all_branches.index(branch)][len(self.matrix[0]) - 1] = 1
-    
-    # compute and return the number of singletons and doubletons in the whole coverage matrix
-    # called from the outside
-    def get_number_singletons_doubletons(self):
-        singletons = 0
-        doubletons = 0
-        for branch in self.matrix:
-            added = sum(branch)
-            if added == 1:
-                singletons += 1
-            elif added == 2:
-                doubletons += 1
-        return (singletons, doubletons)
-    
-    # compute and return the number of singletons and doubletons in ranch which is given through a list of all indexes in the range
-    # called from the outside
-    def get_number_singletons_doubletons_in_range(self, indexes):
-        singletons = 0
-        doubletons = 0
-        for branch in self.matrix:
-            counter = 0
-            for i in indexes:
-                if branch[i] == 1:
-                    counter += 1
-                if counter > 2:
-                    break
-            if counter == 1:
-                singletons += 1
-            elif counter == 2:
-                doubletons += 1
-        return (singletons, doubletons)
-    
-
-
-# extrapolate the coverage rate for t0+m*t0 with the whole greybox-estimator given by the paper
-# called from the coverage_rate_helper
-def greybox_estimator(cov_mat, t0, m):
-    all_estimations = []
-
-    # line 2 - 6: get increasing start and end index for blackbox estimator
-    for i in range(1, t0 + 1):
-        sa = int(i ** (1 - ALPHA))
-        ea = i
-        if sa == ea:
-            continue
-    
-        # line 7 - 8: get all indexes from the blackbox range and shuffle them
-        all_indexes = []
-        for k in range(sa, ea + 1):
-            all_indexes.append(k)
-        random.shuffle(all_indexes)
-        
-        # line 9 - 14: go over increasing indexes and get singletons and doubletons for these indexes and estimate the coverage
-        for j in range(1, ea - sa + 1):
-            singletons, doubletons = cov_mat.get_number_singletons_doubletons_in_range(all_indexes[0:j])
-            singletons += 1
-            doubletons += 1
-            estimation = (singletons / j) * (((j-1) * singletons) / ((j-1) * singletons + 2 * doubletons))
-            all_estimations.append((sa + j - 1, estimation))
-    
-    # line 15 - 19: get start and end regression points and get extrapolation with linear regression
-    sb = int(t0 ** (1 - BETA))
-    eb = t0
-    time_vals = []
-    estimation_vals = []
-    for k in range(len(all_estimations)):
-        if all_estimations[k][0] >= sb and all_estimations[k][0] <= eb:
-            time_vals.append(all_estimations[k][0])
-            estimation_vals.append(all_estimations[k][1])
-    if len(time_vals) < 2:
-        return None
-    log_time = np.log(time_vals).reshape(-1, 1)
-    log_estimation = np.log(estimation_vals)
-    model = LinearRegression()
-    model.fit(log_time, log_estimation)
-    u = np.exp(model.predict(np.log(t0 + m * t0).reshape(-1, 1)))
-    return u[0]
-
-
-
-# an estimator for the t+1-th cycle and uses the whole coverage matrix
-# called from the coverage_rate_helper
-def blackbox_estimator(cov_mat, t):
-    singletons, doubletons = cov_mat.get_number_singletons_doubletons()
-    singletons += 1
-    doubletons += 1
-    estimation = (singletons / t) * (((t-1) * singletons) / ((t-1) * singletons + 2 * doubletons))
-    return estimation
 
 
 
@@ -160,7 +36,7 @@ def coverage_rate_helper(cycle, trial, snapshot, branches, experiment):
     
     # if its the first cycle, create new Coverage_Matrix object fill it with the branches and save it in the Coverage_Matrix_DB
     if cycle == 0:
-        cov_mat = Coverage_Matrix()
+        cov_mat = coverage_matrix.Coverage_Matrix()
         cov_mat.init_first_cycle(branches)
         pickled = pickle.dumps(cov_mat)
         entry = Coverage_Matrix_DB(trial=trial, coverage_matrix=pickled, cycle=cycle, all_branches=len(cov_mat.all_branches))
@@ -180,8 +56,8 @@ def coverage_rate_helper(cycle, trial, snapshot, branches, experiment):
 
     # compute the coverage_rate with the estimators
     m = 1
-    coverage_rate_b = blackbox_estimator(cov_mat, cycle)
-    coverage_rate_g = greybox_estimator(cov_mat, cycle, m)
+    coverage_rate_b = estimators.blackbox_estimator(cov_mat, cycle)
+    coverage_rate_g = estimators.greybox_estimator(cov_mat, cycle, m, ALPHA, BETA)
 
     print(f"### trial: {trial}, cycle: {cycle}, predicted_cycle: {cycle + m * cycle}, coverage_rate_blackbox: {coverage_rate_b}, coverage_rate_greybox: {coverage_rate_g}, num_all_branches: {len(cov_mat.all_branches)}, snapshot_branches: {snapshot.edges_covered}, diff_branches: {snapshot.edges_covered - len(cov_mat.all_branches)}")
 
