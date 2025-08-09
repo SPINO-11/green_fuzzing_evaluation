@@ -40,3 +40,6 @@ docker builder prune -f
 tmux kill-session -t 0
 docker stop $(docker ps -q)
 sudo rm -rf experiment-data/ report-data/ config
+
+
+scp cispa-vm:~/green_fuzzing_evaluation/greenfuzzing/local.db .
