@@ -39,20 +39,21 @@ def coverage_rate_helper(cycle, trial, snapshot, branches, experiment):
         cov_mat = coverage_matrix.Coverage_Matrix()
         cov_mat.init_first_cycle(branches)
         pickled = pickle.dumps(cov_mat)
-        entry = Coverage_Matrix_DB(trial=trial, coverage_matrix=pickled, cycle=cycle, all_branches=len(cov_mat.all_branches))
+        entry = Coverage_Matrix_DB(trial=trial, coverage_matrix=pickled, cycle=cycle, all_branches=len(cov_mat.all_branches)) #trial=cycle
         db_utils.add_all([entry])
         return
     
     # if its not the first cycle, it gets the entry from the Coverage_Matrix_DB, loads the coverage matrix, enters the new branches and save it again in the database
     with db_utils.session_scope() as session:
-        entry = session.query(Coverage_Matrix_DB).filter_by(trial=trial).first()
+        entry = session.query(Coverage_Matrix_DB).filter_by(trial=trial).first() #trial=cycle-1
     cov_mat = pickle.loads(entry.coverage_matrix)
     cov_mat.insert_new_cycle(branches)
     pickled = pickle.dumps(cov_mat)
-    entry.coverage_matrix = pickled
-    entry.cycle = cycle
-    entry.all_branches = len(cov_mat.all_branches)
-    db_utils.add_all([entry])
+    #entry_new = Coverage_Matrix_DB(trial=cycle, coverage_matrix=pickled, cycle=cycle, all_branches=len(cov_mat.all_branches))
+    entry.coverage_matrix = pickled #comment out
+    entry.cycle = cycle #comment out
+    entry.all_branches = len(cov_mat.all_branches) #comment out
+    db_utils.add_all([entry]) #[entry, entry_new]
 
     # compute the coverage_rate with the estimators
     m = 1
