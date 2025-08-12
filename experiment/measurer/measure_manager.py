@@ -604,7 +604,7 @@ def measure_snapshot_coverage(  # pylint: disable=too-many-locals
                           expect_zero=False).retcode:
         snapshot_logger.warning('Corpus not found for cycle: %d.', cycle)
 #############################################
-        return (None, None)
+        return (None, None, None)
 #############################################
 
     snapshot_measurer.initialize_measurement_dirs()
@@ -638,7 +638,7 @@ def measure_snapshot_coverage(  # pylint: disable=too-many-locals
                           expect_zero=False).retcode:
         snapshot_logger.warning('Coverage not found for cycle: %d.', cycle)
 #############################################
-        return (None, None)
+        return (None, None, None)
 #############################################
 
     os.remove(coverage_archive_zipped)  # no reason to keep this around
@@ -659,7 +659,8 @@ def measure_snapshot_coverage(  # pylint: disable=too-many-locals
     snapshot_logger.info('Measured cycle: %d in %f seconds.', cycle,
                          measuring_time)
 ############################################################################
-    return (snapshot, greenhelper.get_covered_branches_from_summary_json(snapshot_measurer.cov_summary_file))
+    branches, hit_counts = greenhelper.get_covered_branches_from_summary_json(snapshot_measurer.cov_summary_file)
+    return (snapshot, branches, hit_counts)
 ############################################################################
 
 

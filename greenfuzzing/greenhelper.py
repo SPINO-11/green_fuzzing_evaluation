@@ -25,7 +25,7 @@ def end_docker_trial(experiment, trial_id):
 
 # adds new cycles to the coverage matrix and compute the coverage_rates with blackbox or greybox estimator and stop a trial if it not reach a certain threshold
 # called from experiment/measurer/measure_worker.py in measure_worker_loop()
-def coverage_rate_helper(cycle, trial, snapshot, branches, experiment):
+def coverage_rate_helper(cycle, trial, snapshot, branches, hit_counts, experiment):
     # if there are no data nothing to be done
     if snapshot == None:
         return
@@ -33,7 +33,7 @@ def coverage_rate_helper(cycle, trial, snapshot, branches, experiment):
     # if its the first cycle, create new Coverage_Matrix object fill it with the branches and save it in the Coverage_Matrix_DB
     if cycle == 0:
         cov_mat = coverage_matrix.Coverage_Matrix()
-        cov_mat.init_first_cycle(branches)
+        cov_mat.init_first_cycle(branches, hit_counts)
         pickled = pickle.dumps(cov_mat)
         entry = Coverage_Matrix_DB(trial=trial, coverage_matrix=pickled, cycle=cycle, all_branches=len(cov_mat.all_branches)) #trial=cycle
         db_utils.add_all([entry])
@@ -43,7 +43,7 @@ def coverage_rate_helper(cycle, trial, snapshot, branches, experiment):
     with db_utils.session_scope() as session:
         entry = session.query(Coverage_Matrix_DB).filter_by(trial=trial).first() #trial=cycle-1
     cov_mat = pickle.loads(entry.coverage_matrix)
-    cov_mat.insert_new_cycle(branches)
+    cov_mat.insert_new_cycle(branches, hit_counts)
     pickled = pickle.dumps(cov_mat)
     #entry_new = Coverage_Matrix_DB(trial=cycle, coverage_matrix=pickled, cycle=cycle, all_branches=len(cov_mat.all_branches))
     entry.coverage_matrix = pickled #comment out
@@ -59,6 +59,8 @@ def coverage_rate_helper(cycle, trial, snapshot, branches, experiment):
     coverage_rate_b = estimators.blackbox_estimator(cov_mat, cycle)
     coverage_rate_g = estimators.greybox_estimator(cov_mat, cycle, m, alpha, beta, n)
     
+    print(cov_mat.matrix)
+    print(len(cov_mat.all_branches), len(cov_mat.all_hit_counts))
     print(f"### trial: {trial}, cycle: {cycle}, predicted_cycle: {cycle + m * cycle}, coverage_rate_blackbox: {coverage_rate_b}, coverage_rate_greybox: {coverage_rate_g}, num_all_branches: {len(cov_mat.all_branches)}, snapshot_branches: {snapshot.edges_covered}, diff_branches: {snapshot.edges_covered - len(cov_mat.all_branches)}")
 
 #    # stops the trial if the coverage rate falls beneath a certain threshold
@@ -75,6 +77,7 @@ def coverage_rate_helper(cycle, trial, snapshot, branches, experiment):
 # called from experiment/measurer/measure_manager.py in measure_snapshot_coverage(...)
 def get_covered_branches_from_summary_json(summary_json_file):
     covered_branches = []
+    covered_hit_counts = []
     try:
         coverage_info = coverage_utils.get_coverage_infomation(summary_json_file)
         functions_data = coverage_info['data'][0]['functions']
@@ -92,14 +95,16 @@ def get_covered_branches_from_summary_json(summary_json_file):
                         b = branch[:hit_true_index] + branch[file_index:] + [1] # 1 is true path
                         if b not in covered_branches:
                             covered_branches.append(b)
+                            covered_hit_counts.append(branch[hit_true_index])
                     if branch[hit_false_index] > 0:
                         b = branch[:hit_true_index] + branch[file_index:] + [0] # 0 is false path
                         if b not in covered_branches:
                             covered_branches.append(b)
+                            covered_hit_counts.append(branch[hit_false_index])
 
     except Exception:  # pylint: disable=broad-except
         print('Coverage summary json file defective or missing.')
-    return covered_branches
+    return covered_branches, covered_hit_counts
     
 
 
@@ -202,14 +207,17 @@ def scheduler_end_expired_ended_trials(experiment_config, core_allocation, logge
 Any changes:
     Measurer: experiment/measurer/
         measurer_manager.py: 
-            measure_manager_loop: added experiment name in config
-            measure_snapshot_coverage: all returns are tuples with (None, None) or with (snapshot, branches)
+            measure_manager_loop: 
+                added experiment name in config
+            measure_snapshot_coverage: 
+                all returns are tuples with (None, None, None) or with (snapshot, branches, hit_counts) 
+                branches, hit_counts are get from greenhelper get_covered_branches_from_summary_json
 
         measurer_worker.py: 
             __init__: added self.experiment = config['experiment']
             measure_worker_loop: 
-                call of greenhelper.measure_worker_test_should_break
-                the call of measure_snapshot_coverage to tuple with used branches
+                call of greenhelper.coverage_rate_helper
+                the call of measure_snapshot_coverage to tripple with used branches and hit_counts
     
     
     Scheduler: experiment/
