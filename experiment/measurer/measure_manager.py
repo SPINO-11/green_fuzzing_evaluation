@@ -50,6 +50,7 @@ from experiment.measurer import run_coverage
 from experiment.measurer import run_crashes
 from experiment import scheduler
 import experiment.measurer.datatypes as measurer_datatypes
+from greenfuzzing import greenhelper
 
 logger = logs.Logger()
 
@@ -658,7 +659,7 @@ def measure_snapshot_coverage(  # pylint: disable=too-many-locals
     snapshot_logger.info('Measured cycle: %d in %f seconds.', cycle,
                          measuring_time)
 ############################################################################
-    return (snapshot, coverage_utils.extract_covered_branches_from_summary_json(snapshot_measurer.cov_summary_file))
+    return (snapshot, greenhelper.get_covered_branches_from_summary_json(snapshot_measurer.cov_summary_file))
 ############################################################################
 
 

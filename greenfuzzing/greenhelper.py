@@ -9,11 +9,7 @@ import subprocess
 import pickle
 from greenfuzzing import coverage_matrix
 from greenfuzzing import estimators
-
-
-# parameters for the estimators
-ALPHA = 0.11
-BETA = 0.5
+from experiment.measurer import coverage_utils
 
 
 
@@ -57,9 +53,12 @@ def coverage_rate_helper(cycle, trial, snapshot, branches, experiment):
 
     # compute the coverage_rate with the estimators
     m = 1
+    n = 5
+    alpha = 0.11
+    beta = 0.5
     coverage_rate_b = estimators.blackbox_estimator(cov_mat, cycle)
-    coverage_rate_g = estimators.greybox_estimator(cov_mat, cycle, m, ALPHA, BETA)
-
+    coverage_rate_g = estimators.greybox_estimator(cov_mat, cycle, m, alpha, beta, n)
+    
     print(f"### trial: {trial}, cycle: {cycle}, predicted_cycle: {cycle + m * cycle}, coverage_rate_blackbox: {coverage_rate_b}, coverage_rate_greybox: {coverage_rate_g}, num_all_branches: {len(cov_mat.all_branches)}, snapshot_branches: {snapshot.edges_covered}, diff_branches: {snapshot.edges_covered - len(cov_mat.all_branches)}")
 
 #    # stops the trial if the coverage rate falls beneath a certain threshold
@@ -71,7 +70,36 @@ def coverage_rate_helper(cycle, trial, snapshot, branches, experiment):
 #        end_docker_trial(experiment, trial)
 
 
-    
+
+# extracts all branches from the coverage summary json with distinkt true and false paths
+# called from experiment/measurer/measure_manager.py in measure_snapshot_coverage(...)
+def get_covered_branches_from_summary_json(summary_json_file):
+    covered_branches = []
+    try:
+        coverage_info = coverage_utils.get_coverage_infomation(summary_json_file)
+        functions_data = coverage_info['data'][0]['functions']
+
+        hit_true_index = 4
+        hit_false_index = 5
+        type_index = -1
+        branch_region_type = 4
+        file_index = 6
+
+        for function_data in functions_data:
+            for branch in function_data['branches']:
+                if branch[type_index] == branch_region_type:
+                    if branch[hit_true_index] > 0:
+                        b = branch[:hit_true_index] + branch[file_index:] + [1] # 1 is true path
+                        if b not in covered_branches:
+                            covered_branches.append(b)
+                    if branch[hit_false_index] > 0:
+                        b = branch[:hit_true_index] + branch[file_index:] + [0] # 0 is false path
+                        if b not in covered_branches:
+                            covered_branches.append(b)
+
+    except Exception:  # pylint: disable=broad-except
+        print('Coverage summary json file defective or missing.')
+    return covered_branches
     
 
 

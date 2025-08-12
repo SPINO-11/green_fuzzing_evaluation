@@ -5,7 +5,7 @@ from sklearn.linear_model import LinearRegression
 
 # extrapolate the coverage rate for t0+m*t0 with the whole greybox-estimator given by the paper
 # called from the coverage_rate_helper
-def greybox_estimator(cov_mat, t0, m, alpha, beta):
+def greybox_estimator(cov_mat, t0, m, alpha, beta, n):
     all_estimations = []
 
     # line 2 - 6: get increasing start and end index for blackbox estimator
@@ -14,20 +14,20 @@ def greybox_estimator(cov_mat, t0, m, alpha, beta):
         ea = i
         if sa == ea:
             continue
-    
-        # line 7 - 8: get all indexes from the blackbox range and shuffle them
-        all_indexes = []
-        for k in range(sa, ea + 1):
-            all_indexes.append(k)
-        random.shuffle(all_indexes)
-        
-        # line 9 - 14: go over increasing indexes and get singletons and doubletons for these indexes and estimate the coverage
-        for j in range(2, ea - sa + 1):
-            singletons, doubletons = cov_mat.get_number_singletons_doubletons_in_range(all_indexes[0:j])
-            singletons += 1
-            doubletons += 1
-            estimation = (singletons / j) * (((j-1) * singletons) / ((j-1) * singletons + 2 * doubletons))
-            all_estimations.append((sa + j - 1, estimation))
+
+        # shuffle more times to get more estimates and cancel the shuffle bias
+        for _ in range(n):
+            # get all indexes from the blackbox range
+            all_indexes = list(range(sa, ea + 1))
+            random.shuffle(all_indexes)
+
+            # line 9 - 14: go over increasing indexes and get singletons and doubletons for these indexes and estimate the coverage
+            for j in range(2, ea - sa + 1):
+                singletons, doubletons = cov_mat.get_number_singletons_doubletons_in_range(all_indexes[0:j])
+                singletons += 1
+                doubletons += 1
+                estimation = (singletons / j) * (((j-1) * singletons) / ((j-1) * singletons + 2 * doubletons))
+                all_estimations.append((sa + j - 1, estimation))
     
     # line 15 - 19: get start and end regression points and get extrapolation with linear regression
     sb = int(t0 ** (1 - beta))
