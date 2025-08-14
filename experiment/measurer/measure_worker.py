@@ -20,6 +20,7 @@ import experiment.measurer.datatypes as measurer_datatypes
 from experiment.measurer import measure_manager
 
 from greenfuzzing import greenhelper
+import traceback
 
 MEASUREMENT_TIMEOUT = 1
 logger = logs.Logger()  # pylint: disable=invalid-name
@@ -63,12 +64,16 @@ class BaseMeasureWorker:
                 request.fuzzer, request.benchmark, request.trial_id,
                 request.cycle)
 #######################################################################################
-            measured_snapshot, branches, hit_counts = measure_manager.measure_snapshot_coverage(
-                request.fuzzer, request.benchmark, request.trial_id,
-                request.cycle, self.region_coverage)
-            
-            #greenhelper.measure_worker_test_should_break(measured_snapshot, request, self.experiment)
-            greenhelper.coverage_rate_helper(request.cycle, request.trial_id, measured_snapshot, branches, hit_counts, self.experiment)
+            try:
+                measured_snapshot, branches, hit_counts = measure_manager.measure_snapshot_coverage(
+                    request.fuzzer, request.benchmark, request.trial_id,
+                    request.cycle, self.region_coverage)
+
+                #greenhelper.measure_worker_test_should_break(measured_snapshot, request, self.experiment)
+                greenhelper.coverage_rate_helper(request.cycle, request.trial_id, measured_snapshot, branches, hit_counts, self.experiment)
+            except Exception:
+                print("################################### FEHLER !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                traceback.print_exc()
 ########################################################################################
             self.put_result_in_response_queue(measured_snapshot, request)
             time.sleep(MEASUREMENT_TIMEOUT)
