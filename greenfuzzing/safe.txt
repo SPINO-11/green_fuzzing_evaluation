@@ -1,0 +1,48 @@
+def extract_corpus(corpus_archive: str, output_directory: str):
+    """Extract a corpus from |corpus_archive| to |output_directory|."""
+    ###############################################################
+    try:
+        size = os.path.getsize(corpus_archive)
+    except FileNotFoundError:
+        size = -1
+    try:
+        mtime = time.ctime(os.path.getmtime(corpus_archive))
+    except Exception:
+        mtime = "unbekannt"
+    print(f"### Pfad: {corpus_archive}, Output dir: {output_directory}, Dateigröße: {size}, Letzte Änderung: {mtime}")
+    ##############################################################
+    try: ##########################
+        pathlib.Path(output_directory).mkdir(exist_ok=True)
+        import time
+        for i in range(5):
+            try:
+                with tarfile.open(corpus_archive, 'r:gz') as tar:
+                    print("###### tarfile opened, lese mitgliederliste")####
+                    members = tar.getmembers()####
+                    print(f"###### Anzahl Eintage im Archive: {len(members)}")###
+                    break
+            except tarfile.ReadError:
+                print(f"###### archiv kaputt, retry {i+1}/5")
+                time.sleep(10)
+        #for member in tar.getmembers():
+        for member in members:
+            if not member.isfile():
+                # We don't care about directory structure.
+                # So skip if not a file.
+                continue
+            member_file_handle = tar.extractfile(member)
+            if not member_file_handle:
+                logger.info('Failed to get handle to %s.', member)
+                continue
+            # TODO(metzman): Consider removing the hashing. We don't really need
+            # it anymore.
+            member_contents = member_file_handle.read()
+            filename = utils.string_hash(member_contents)
+            file_path = os.path.join(output_directory, filename)
+            if os.path.exists(file_path):
+                # Don't write out duplicates in the archive.
+                continue
+            filesystem.write(file_path, member_contents, 'wb')
+    except tarfile.ReadError as e:
+        print(f"###### TAR-Achive-Fehelr: {e}")
+        raise

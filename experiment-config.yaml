@@ -5,7 +5,9 @@ trials: 1
 # 1 day = 24 * 60 * 60 = 86400
 #max_total_time: 900
 #max_total_time: 3600
-max_total_time: 43200
+#max_total_time: 43200
+max_total_time: 86400
+
 
 # The location of the docker registry.
 # FIXME: Support custom docker registry.
@@ -26,5 +28,5 @@ report_filestore: /home/ubuntu/green_fuzzing_evaluation/report-data
 local_experiment: true
 
 #snapshot_period: 60
-#snapshot_period: 300
-snapshot_period: 900
+snapshot_period: 300
+#snapshot_period: 900

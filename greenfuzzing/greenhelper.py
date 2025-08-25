@@ -59,8 +59,6 @@ def coverage_rate_helper(cycle, trial, snapshot, branches, hit_counts, experimen
     coverage_rate_b = estimators.blackbox_estimator(cov_mat, cycle)
     coverage_rate_g = estimators.greybox_estimator(cov_mat, cycle, m, alpha, beta, n)
     
-    print(cov_mat.matrix)
-    print(len(cov_mat.all_branches), len(cov_mat.all_hit_counts))
     print(f"### trial: {trial}, cycle: {cycle}, predicted_cycle: {cycle + m * cycle}, coverage_rate_blackbox: {coverage_rate_b}, coverage_rate_greybox: {coverage_rate_g}, num_all_branches: {len(cov_mat.all_branches)}, snapshot_branches: {snapshot.edges_covered}, diff_branches: {snapshot.edges_covered - len(cov_mat.all_branches)}")
 
 #    # stops the trial if the coverage rate falls beneath a certain threshold
