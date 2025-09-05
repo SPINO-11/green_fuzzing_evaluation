@@ -21,7 +21,7 @@ source .venv/bin/activate
 
 PYTHONPATH=. python3 experiment/run_experiment.py -c experiment-config.yaml -b freetype2_ftfuzzer bloaty_fuzz_target -e testimpl -f afl libfuzzer -a > greenfuzzing/out.txt
 
-
+PYTHONPATH=. python3 experiment/run_experiment.py -c experiment-config.yaml -b  -e testimpl -f  -a
 
 htop
 df -h

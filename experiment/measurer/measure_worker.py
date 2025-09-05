@@ -72,7 +72,7 @@ class BaseMeasureWorker:
                 #greenhelper.measure_worker_test_should_break(measured_snapshot, request, self.experiment)
                 greenhelper.coverage_rate_helper(request.cycle, request.trial_id, measured_snapshot, branches, hit_counts, self.experiment)
             except Exception:
-                print("################################### FEHLER !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                print(f"##### FEHLER !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! trial: {request.trial_id}, cycle: {request.cycle}, fuzzer: {request.fuzzer}, benchmark: {request.benchmark}")
                 traceback.print_exc()
 ########################################################################################
             self.put_result_in_response_queue(measured_snapshot, request)

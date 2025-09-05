@@ -1,0 +1,63 @@
+	bloaty_fuzz_target (9000)		eclipser, alfplusplus
+
+	curl_curl_fuzzer_http (18000)
+
+	freetype2-2017 (25000)			aflplusplus
+
+harfbuzz-1.2.3 (9000)
+
+jsoncpp_jsoncpp_fuzzer (650)
+
+	lcms-2017-03-21 (3500)			eclipser, aflfast
+
+	libjpeg-turbo-07-2017 (3750)		
+
+	libpcap_fuzz_both (4000)	        	aflplusplus
+
+	libpng-1.2.56 (2200)
+
+libxml2-v2.9.2 (12000)
+
+	mbedtls_fuzz_dtlsclient (9000)		alfplusplus, aflsmart
+
+(	)openssl_x509 (13000)
+
+	openthread-2019-12-23 (5800)		fairfuzz, eclipser, honggfuzz
+
+proj4-2017-08-14 (8000)
+
+re2-2014-12-09 (3500)
+
+(	)sqlite3_ossfuzz (35000)			eclipser, alfplusplus, fairfuzz, aflfast
+
+systemd_fuzz_link-parser (650)
+
+	vorbis-2017-12-11 (2200)		libfuzzer, eclipser
+
+woff2-2016-05-06 (1800)		
+
+zlib_zlib_uncompress_fuzzer (950)
+
+
+
+
+
+
+
+
+6 fuzzer, 10 benchmarks, 5 wiederholungen
+
+fuzzers:
+	aflplusplus aflfast fairfuzz aflsmart libafl
+
+benchmarks:
+	curl_curl_fuzzer_http bloaty_fuzz_target mbedtls_fuzz_dtlsclient openthread_ot-ip6-send-fuzzer libpcap_fuzz_both lcms_cms_transform_fuzzer vorbis_decode_fuzzer freetype2_ftfuzzer libpng_libpng_read_fuzzer libjpeg-turbo_libjpeg_turbo_fuzzer
+
+problems:
+	afl eclipser: unexpected end of data by extract_corpus
+	honggfuzz: does not found existing corpus
+	sqlite3_ossfuzz: building measurer failed
+	openssl_x509: Coverage summary json file generation failed in the end
+	some benchmarks: get zero coverage for the first or last cycle
+	libjpeg wont work
+
