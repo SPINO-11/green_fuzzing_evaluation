@@ -17,9 +17,10 @@ N = 5
 
 
 def get_cov_mat():
-    conn = sqlite3.connect('greenfuzzing/local.db')
+    #conn = sqlite3.connect('greenfuzzing/local.db')
+    conn = sqlite3.connect('experiment-data/local.db')
     cursor = conn.cursor()
-    cursor.execute("SELECT coverage_matrix FROM coverage_matrix WHERE trial == 2") #WHERE trial == 1
+    cursor.execute("SELECT coverage_matrix FROM coverage_matrix WHERE trial == 25 AND cycle == 3") #WHERE trial == 1
     rows = cursor.fetchall()
     object = pickle.loads(rows[0][0])
     return object
@@ -30,9 +31,11 @@ sys.path.insert(0, project_root)
 
 
 cov_mat = get_cov_mat()
-#print(cov_mat.matrix)
-u = estimators.greybox_estimator(cov_mat, T, M, ALPHA, BETA, N)
-
-print(T, T+M*T)
-print(u)
+print(cov_mat.matrix)
+print(len(cov_mat.matrix))
 print(len(cov_mat.all_branches))
+#u = estimators.greybox_estimator(cov_mat, T, M, ALPHA, BETA, N)
+#
+#print(T, T+M*T)
+#print(u)
+#print(len(cov_mat.all_branches))

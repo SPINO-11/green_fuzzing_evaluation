@@ -40,6 +40,14 @@ from common import retry
 from common import sanitizer
 from common import utils
 
+import tempfile
+import tarfile
+import os
+import time
+import sys
+
+
+
 NUM_RETRIES = 3
 RETRY_DELAY = 3
 
@@ -378,33 +386,73 @@ class TrialRunner:  # pylint: disable=too-many-instance-attributes
         with open(stats_path, 'w', encoding='utf-8') as stats_file_handle:
             stats_file_handle.write(stats_json_str)
 
+
+#############################################################################################################
     def archive_corpus(self):
         """Archive this cycle's corpus."""
-        archive = os.path.join(
-            self.corpus_archives_dir,
-            experiment_utils.get_corpus_archive_name(self.cycle))
-
-        with tarfile.open(archive, 'w:gz') as tar:
+        # write everything to a tmp file and then replace it atomar with the right name
+        final_path = os.path.join(self.corpus_archives_dir, experiment_utils.get_corpus_archive_name(self.cycle))
+        
+        for i in range(10):
+            tmp_fd = None
+            tmp_path = None
             new_archive_time = self.last_archive_time
-            for file_path in get_corpus_elements(self.output_corpus):
+            try:
+                tmp_fd, tmp_path = tempfile.mkstemp(prefix=os.path.basename(final_path) + ".", suffix=".tmp", dir=self.corpus_archives_dir)
+                os.close(tmp_fd)
+                tmp_fd = None
+
+                with open(tmp_path, "wb") as f:
+                    with tarfile.open(fileobj=f, mode='w:gz') as tar:
+                        new_archive_time = self.last_archive_time
+                        for file_path in get_corpus_elements(self.output_corpus):
+                            try:
+                                stat_info = os.stat(file_path)
+                                last_modified_time = stat_info.st_mtime
+                                if last_modified_time <= self.last_archive_time:
+                                    continue  # We've saved this file already.
+                                new_archive_time = max(new_archive_time, last_modified_time)
+                                arcname = os.path.relpath(file_path, self.output_corpus)
+                                tar.add(file_path, arcname=arcname)
+                            except (FileNotFoundError, OSError):
+                                # We will get these errors if files or directories are being
+                                # deleted from |directory| as we archive it. Don't bother
+                                # rescanning the directory, new files will be archived in
+                                # the next sync.
+                                pass
+                            except Exception:  # pylint: disable=broad-except
+                                logs.error('Unexpected exception occurred when archiving.')
+
+                    # important to flush all buffered data
+                    f.flush()
+                    os.fsync(f.fileno())
+
                 try:
-                    stat_info = os.stat(file_path)
-                    last_modified_time = stat_info.st_mtime
-                    if last_modified_time <= self.last_archive_time:
-                        continue  # We've saved this file already.
-                    new_archive_time = max(new_archive_time, last_modified_time)
-                    arcname = os.path.relpath(file_path, self.output_corpus)
-                    tar.add(file_path, arcname=arcname)
-                except (FileNotFoundError, OSError):
-                    # We will get these errors if files or directories are being
-                    # deleted from |directory| as we archive it. Don't bother
-                    # rescanning the directory, new files will be archived in
-                    # the next sync.
-                    pass
-                except Exception:  # pylint: disable=broad-except
-                    logs.error('Unexpected exception occurred when archiving.')
-        self.last_archive_time = new_archive_time
-        return archive
+                    with tarfile.open(tmp_path, 'r:gz') as test_tar:
+                        for _ in test_tar:
+                            pass
+                except (tarfile.ReadError, EOFError, OSError) as e:
+                    logs.error('Archive validation failed')
+                    # rm tmp and retry until it goes to the end
+                    os.remove(tmp_path)
+                    time.sleep(RETRY_DELAY)
+                    continue
+
+                # validation is okay replace atomar
+                os.replace(tmp_path, final_path)
+                self.last_archive_time = new_archive_time
+                return final_path
+            
+            except Exception as e:
+                logs.error('Failed corpus_archive:', e)
+                time.sleep(RETRY_DELAY)
+                continue
+
+        # if noting helps just ignore this cycle
+        return None
+            
+##########################################################################################################
+
 
     def save_corpus_archive(self, archive):
         """Save corpus |archive| to GCS and delete when done."""

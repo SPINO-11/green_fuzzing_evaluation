@@ -35,31 +35,28 @@ def coverage_rate_helper(cycle, trial, snapshot, branches, hit_counts, experimen
         cov_mat = coverage_matrix.Coverage_Matrix()
         cov_mat.init_first_cycle(branches, hit_counts)
         pickled = pickle.dumps(cov_mat)
-        entry = Coverage_Matrix_DB(trial=trial, coverage_matrix=pickled, cycle=cycle, all_branches=len(cov_mat.all_branches)) #trial=cycle
+        entry = Coverage_Matrix_DB(trial=trial, cycle=cycle, coverage_matrix=pickled, all_branches=len(cov_mat.all_branches))
         db_utils.add_all([entry])
         return
     
     # if its not the first cycle, it gets the entry from the Coverage_Matrix_DB, loads the coverage matrix, enters the new branches and save it again in the database
     with db_utils.session_scope() as session:
-        entry = session.query(Coverage_Matrix_DB).filter_by(trial=trial).first() #trial=cycle-1
+        entry = session.query(Coverage_Matrix_DB).filter_by(trial=trial, cycle=cycle-1).first()
     cov_mat = pickle.loads(entry.coverage_matrix)
     cov_mat.insert_new_cycle(branches, hit_counts)
     pickled = pickle.dumps(cov_mat)
-    #entry_new = Coverage_Matrix_DB(trial=cycle, coverage_matrix=pickled, cycle=cycle, all_branches=len(cov_mat.all_branches))
-    entry.coverage_matrix = pickled #comment out
-    entry.cycle = cycle #comment out
-    entry.all_branches = len(cov_mat.all_branches) #comment out
-    db_utils.add_all([entry]) #[entry, entry_new]
+    entry_new = Coverage_Matrix_DB(trial=trial, cycle=cycle, coverage_matrix=pickled, all_branches=len(cov_mat.all_branches))
+    db_utils.add_all([entry, entry_new])
 
     # compute the coverage_rate with the estimators
-    m = 1
+    m = 0.5
     n = 5
     alpha = 0.11
     beta = 0.5
     coverage_rate_b = estimators.blackbox_estimator(cov_mat, cycle)
     coverage_rate_g = estimators.greybox_estimator(cov_mat, cycle, m, alpha, beta, n)
     
-    print(f"### trial: {trial}, cycle: {cycle}, predicted_cycle: {cycle + m * cycle}, coverage_rate_blackbox: {coverage_rate_b}, coverage_rate_greybox: {coverage_rate_g}, num_all_branches: {len(cov_mat.all_branches)}, snapshot_branches: {snapshot.edges_covered}, diff_branches: {snapshot.edges_covered - len(cov_mat.all_branches)}")
+    print(f"### t: {trial}, c: {cycle}, pc: {cycle + m * cycle}, b: {coverage_rate_b}, g: {coverage_rate_g}, n: {len(cov_mat.all_branches)}, s: {snapshot.edges_covered}, d: {snapshot.edges_covered - len(cov_mat.all_branches)}")
 
 #    # stops the trial if the coverage rate falls beneath a certain threshold
 #    if coverage_rate_b < 0 and coverage_rate_g < 0:
@@ -104,13 +101,6 @@ def get_covered_branches_from_summary_json(summary_json_file):
         print('Coverage summary json file defective or missing.')
     return covered_branches, covered_hit_counts
     
-
-
-
-
-
-
-
 
 
 
@@ -222,6 +212,12 @@ Any changes:
         scheduler.py:
             schedule_loop: changes sleep time to 60 seconds
             schedule: call greenhelper.scheduler_end_expired_ended_trials instead of end_expired_trials
+
+    
+    Runner: experiment/
+        runner.py:
+            archive_corpus:
+                retry to make the tarfile if it is corrputed until it is not corrupted anymore
     
     
     Database: database/

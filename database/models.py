@@ -104,7 +104,7 @@ class Crash(Base):
 class Coverage_Matrix_DB(Base):
     __tablename__ = 'coverage_matrix'
     trial = Column(Integer, primary_key = True)
+    cycle = Column(Integer, primary_key = True)
     coverage_matrix = Column(LargeBinary)
-    cycle = Column(Integer)
     all_branches = Column(Integer)
 ########################################################################
