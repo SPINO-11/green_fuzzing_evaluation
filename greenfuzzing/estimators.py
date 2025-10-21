@@ -44,7 +44,7 @@ def greybox_estimator(cov_mat, t0, m, alpha, beta, n):
     log_estimation = np.log(estimation_vals)
     model = LinearRegression()
     model.fit(log_time, log_estimation)
-    u = np.exp(model.predict(np.log(t0 + m * t0).reshape(-1, 1)))
+    u = np.exp(model.predict(np.log(t0 + m*t0).reshape(-1, 1))) # or t0 + m * t0
     return u[0]
 
 
@@ -54,7 +54,8 @@ def greybox_estimator(cov_mat, t0, m, alpha, beta, n):
 def blackbox_estimator(cov_mat, t):
     if t < 2:
         return None
-    singletons, doubletons = cov_mat.get_number_singletons_doubletons()
+    #singletons, doubletons = cov_mat.get_number_singletons_doubletons()
+    singletons, doubletons = cov_mat.get_number_singletons_doubletons_in_range(list(range(0, t + 1)))
     singletons += 1
     doubletons += 1
     estimation = (singletons / t) * (((t-1) * singletons) / ((t-1) * singletons + 2 * doubletons))

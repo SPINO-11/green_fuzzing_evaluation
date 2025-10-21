@@ -43,3 +43,14 @@ sudo rm -rf experiment-data/ report-data/ config
 
 
 scp cispa-vm:~/green_fuzzing_evaluation/greenfuzzing/local.db .
+scp phoenix10:~/green_fuzzing_evaluation/experiment-data/local.db .
+scp phoenix10:~/green_fuzzing_evaluation/greenfuzzing/out.txt .
+scp -r phoenix10:~/green_fuzzing_evaluation/experiment-data/ .
+scp -r phoenix10:~/green_fuzzing_evaluation/report-data/ .
+
+scp phoenix10:~/green_fuzzing_evaluation/greenfuzzing/out.txt .
+scp -r phoenix10:~/green_fuzzing_evaluation/report-data/ .
+ssh phoenix10 "sudo tar -czf - ~/green_fuzzing_evaluation/experiment-data" | tar -xzf -
+
+.tables
+SELECT COUNT(*) FROM snapshot WHERE trial_id = 1;

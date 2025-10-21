@@ -37,26 +37,35 @@ def coverage_rate_helper(cycle, trial, snapshot, branches, hit_counts, experimen
         pickled = pickle.dumps(cov_mat)
         entry = Coverage_Matrix_DB(trial=trial, cycle=cycle, coverage_matrix=pickled, all_branches=len(cov_mat.all_branches))
         db_utils.add_all([entry])
+        print(f"### t: {trial}, c: {cycle}, n: {len(cov_mat.all_branches)}, s: {snapshot.edges_covered}, d: {snapshot.edges_covered - len(cov_mat.all_branches)}")
         return
     
     # if its not the first cycle, it gets the entry from the Coverage_Matrix_DB, loads the coverage matrix, enters the new branches and save it again in the database
     with db_utils.session_scope() as session:
         entry = session.query(Coverage_Matrix_DB).filter_by(trial=trial, cycle=cycle-1).first()
+    #cov_mat = pickle.loads(entry.coverage_matrix)
+    #cov_mat.insert_new_cycle(branches, hit_counts)
+    #pickled = pickle.dumps(cov_mat)
+    #entry_new = Coverage_Matrix_DB(trial=trial, cycle=cycle, coverage_matrix=pickled, all_branches=len(cov_mat.all_branches))
+    #db_utils.add_all([entry, entry_new])
     cov_mat = pickle.loads(entry.coverage_matrix)
     cov_mat.insert_new_cycle(branches, hit_counts)
-    pickled = pickle.dumps(cov_mat)
-    entry_new = Coverage_Matrix_DB(trial=trial, cycle=cycle, coverage_matrix=pickled, all_branches=len(cov_mat.all_branches))
-    db_utils.add_all([entry, entry_new])
+    pickled = pickle.dumps(cov_mat) 
+    entry.coverage_matrix = pickled
+    entry.cycle = cycle
+    entry.all_branches = len(cov_mat.all_branches)
+    db_utils.add_all([entry])
 
     # compute the coverage_rate with the estimators
-    m = 0.5
-    n = 5
-    alpha = 0.11
-    beta = 0.5
-    coverage_rate_b = estimators.blackbox_estimator(cov_mat, cycle)
-    coverage_rate_g = estimators.greybox_estimator(cov_mat, cycle, m, alpha, beta, n)
+    #m = 0.5
+    #n = 5
+    #alpha = 0.11
+    #beta = 0.5
+    #coverage_rate_b = estimators.blackbox_estimator(cov_mat, cycle)
+    #coverage_rate_g = estimators.greybox_estimator(cov_mat, cycle, m, alpha, beta, n)
     
-    print(f"### t: {trial}, c: {cycle}, pc: {cycle + m * cycle}, b: {coverage_rate_b}, g: {coverage_rate_g}, n: {len(cov_mat.all_branches)}, s: {snapshot.edges_covered}, d: {snapshot.edges_covered - len(cov_mat.all_branches)}")
+    #print(f"### t: {trial}, c: {cycle}, pc: {cycle + m * cycle}, b: {coverage_rate_b}, g: {coverage_rate_g}, n: {len(cov_mat.all_branches)}, s: {snapshot.edges_covered}, d: {snapshot.edges_covered - len(cov_mat.all_branches)}")
+    print(f"### t: {trial}, c: {cycle}, n: {len(cov_mat.all_branches)}, s: {snapshot.edges_covered}, d: {snapshot.edges_covered - len(cov_mat.all_branches)}")
 
 #    # stops the trial if the coverage rate falls beneath a certain threshold
 #    if coverage_rate_b < 0 and coverage_rate_g < 0:

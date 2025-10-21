@@ -45,10 +45,10 @@ zlib_zlib_uncompress_fuzzer (950)
 5 fuzzer, 10 benchmarks, 5 wiederholungen
 
 fuzzers:
-	aflplusplus aflfast fairfuzz eclipser libafl
+	aflplusplus honggfuzz fairfuzz eclipser libafl
 
 benchmarks:
-	curl_curl_fuzzer_http bloaty_fuzz_target mbedtls_fuzz_dtlsclient openthread_ot-ip6-send-fuzzer libpcap_fuzz_both lcms_cms_transform_fuzzer vorbis_decode_fuzzer freetype2_ftfuzzer libpng_libpng_read_fuzzer zlib_zlib_uncompress_fuzzer
+	curl_curl_fuzzer_http bloaty_fuzz_target mbedtls_fuzz_dtlsclient openthread_ot-ip6-send-fuzzer libpcap_fuzz_both lcms_cms_transform_fuzzer freetype2_ftfuzzer libpng_libpng_read_fuzzer zlib_zlib_uncompress_fuzzer openssl_x509
 
 problems:
 	sqlite3_ossfuzz: building measurer failed
@@ -58,4 +58,14 @@ problems:
 
 
 
-PYTHONPATH=. python3 experiment/run_experiment.py -c experiment-config.yaml -b curl_curl_fuzzer_http bloaty_fuzz_target mbedtls_fuzz_dtlsclient openthread_ot-ip6-send-fuzzer libpcap_fuzz_both lcms_cms_transform_fuzzer vorbis_decode_fuzzer freetype2_ftfuzzer libpng_libpng_read_fuzzer zlib_zlib_uncompress_fuzzer -e testimpl -f aflplusplus aflfast fairfuzz eclipser libafl -a > greenfuzzing/out.txt
+PYTHONPATH=. python3 experiment/run_experiment.py -c experiment-config.yaml -b curl_curl_fuzzer_http bloaty_fuzz_target mbedtls_fuzz_dtlsclient openthread_ot-ip6-send-fuzzer libpcap_fuzz_both lcms_cms_transform_fuzzer freetype2_ftfuzzer libpng_libpng_read_fuzzer zlib_zlib_uncompress_fuzzer openssl_x509 -e testimpl -f aflplusplus honggfuzz fairfuzz eclipser libafl -a > greenfuzzing/out.txt
+
+
+288 per trial
+bei kleiner ausführung und 10min measure interval funzt 
+jetzt: funzt 
+--> problem berechnungen zu lange
+
+
+done: bloaty_fuzz_target (with errors in it and without cycle 0) / curl_curl_fuzzer_http (without cycle 0) / mbedtls_fuzz_dtlsclient / openthread_ot-ip6-send-fuzzer / libpcap_fuzz_both / lcms_cms_transform_fuzzer / freetype2_ftfuzzer / libpng_libpng_read_fuzzer / zlib_zlib_uncompress_fuzzer
+ERRORS: vorbis_decode_fuzzer (3 corrupted trials)	-->	openssl_x509
