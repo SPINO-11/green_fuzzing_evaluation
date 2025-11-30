@@ -393,7 +393,7 @@ class TrialRunner:  # pylint: disable=too-many-instance-attributes
         # write everything to a tmp file and then replace it atomar with the right name
         final_path = os.path.join(self.corpus_archives_dir, experiment_utils.get_corpus_archive_name(self.cycle))
         
-        for i in range(10):
+        for i in range(10): # try 10 times before giving up
             tmp_fd = None
             tmp_path = None
             new_archive_time = self.last_archive_time
@@ -427,12 +427,12 @@ class TrialRunner:  # pylint: disable=too-many-instance-attributes
                     f.flush()
                     os.fsync(f.fileno())
 
+                # test if tarfiles are corrupted
                 try:
                     with tarfile.open(tmp_path, 'r:gz') as test_tar:
                         for _ in test_tar:
                             pass
                 except (tarfile.ReadError, EOFError, OSError) as e:
-                    logs.error('Archive validation failed')
                     # rm tmp and retry until it goes to the end
                     os.remove(tmp_path)
                     time.sleep(RETRY_DELAY)
@@ -443,6 +443,7 @@ class TrialRunner:  # pylint: disable=too-many-instance-attributes
                 self.last_archive_time = new_archive_time
                 return final_path
             
+            # anything else went wrong 
             except Exception as e:
                 logs.error('Failed corpus_archive:', e)
                 time.sleep(RETRY_DELAY)
@@ -450,7 +451,6 @@ class TrialRunner:  # pylint: disable=too-many-instance-attributes
 
         # if noting helps just ignore this cycle
         return None
-            
 ##########################################################################################################
 
 

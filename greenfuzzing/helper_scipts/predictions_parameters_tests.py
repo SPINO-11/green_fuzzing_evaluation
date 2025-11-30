@@ -8,6 +8,8 @@ import sys
 
 
 PATH = "../done_experiments/zlib_zlib_uncompress_fuzzer/experiment-data/local.db" # CHANGE PATH !!!
+PATHOF = "../done_experiments/zlib_zlib_uncompress_fuzzer/outfiltered.txt" # CHANGE PATH !!!
+PATHOFE = "../done_experiments/zlib_zlib_uncompress_fuzzer/outfilteredwestimators.txt" # CHANGE PATH !!!
 MAX_BRANCH_BENCHMARK = 76184
 
 
@@ -30,10 +32,36 @@ def single_double(mat, indexes):
 
 
 
+def get_number(mat, indexes):
+        singletons = 0
+        doubletons = 0
+        for branch in mat:
+            counter = 0
+            for i in indexes:
+                if branch[i] == 1:
+                    counter += 1
+                if counter > 2:
+                    break
+            if counter == 1:
+                singletons += 1
+            elif counter == 2:
+                doubletons += 1
+        return (singletons, doubletons)
+
+
+
 def greybox_estimator_test(mat, t0, m):
-    ALPHA = 0.11
-    BETA = 0.5
-    N = 1
+    ALPHA = 0.15
+    #print(ALPHA)
+    BETA = 0.4
+    #print(BETA)
+    N = 25
+    if t0 >= 50:
+        N = 15
+    if t0 >= 75:
+        N = 5
+    if t0 >= 100:
+        N = 1
 
     all_estimations = []
 
@@ -188,8 +216,8 @@ beta = (1 + beta**2) * (t*r / (beta**2 * t + r)) --> je größer desto besser
 
 
 def outfiltered_with_estimators():
-    with open("../done_experiments/zlib_zlib_uncompress_fuzzer/outfiltered.txt", "r") as outf: # CHANGE PATH !!!
-        with open("../done_experiments/zlib_zlib_uncompress_fuzzer/outfilteredwestimators.txt", "w") as outfwe: # CHANGE PATH !!!
+    with open(PATHOF, "r") as outf: 
+        with open(PATHOFE, "w") as outfwe:
             for t in range(1, 26):
                 cov_mat = get_cov_mat(t, 288)
                 mat = mat_to_np(cov_mat)
@@ -206,29 +234,22 @@ def outfiltered_with_estimators():
                     outfwe.write(line)
 
 
+def just_tests():
+    for t in range(18, 19):
+        print(t)
+        cov_mat = get_cov_mat(t, 288)
+        mat = mat_to_np(cov_mat)
+        for c in range(50, 51):
+            crg = greybox_estimator_test(mat, c, 1.5)
+            print(f"c: {c}, g: {crg}")
+
+
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, project_root)
 
-#extract_thresholds_for_one_trial(1)
+#extract_thresholds_for_one_trial(21)
 
 outfiltered_with_estimators()
+#just_tests()
 
-
-
-
-
-
-
-"""
-Possible Thresholds:
-Blackbox Estimator:
-    Not breaking if the coverage rate is bigger than one of the three before
-    Break if the coverage rate falls under 1 or 1.5 new branches per cycle maybe also only if the three before also falls under
-
-
-Greybox Estimator:
-    Break under 5 or 7.5 similar of blackbox with 1 or 1.5
-    Break if all_branches under 0.0001 * All_Branches
-    Break if num_branches under 0.001 * num_branches
-"""

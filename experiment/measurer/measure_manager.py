@@ -606,25 +606,6 @@ def measure_snapshot_coverage(  # pylint: disable=too-many-locals
 #############################################
         return (None, None, None)
 #############################################
-###############################################################################################
-#    while True:
-#        # check if tar file is complete
-#        try:
-#            with tarfile.open(corpus_archive_dst) as tar:
-#                for _ in tar:
-#                    pass
-#            print(f"##### tarfile is okay !!!!!!!!!!!!!!!!!!!!!!!!! trial: {trial_num}, cycle: {cycle}")
-#            break
-#        except (tarfile.ReadError, EOFError, OSError):
-#            print(f"##### tarfile error !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! trial: {trial_num}, cycle: {cycle}")
-#        
-#        # remove copied and false tarfile sleep and then try to copy again
-#        os.remove(corpus_archive_dst)
-#        time.sleep(10)
-#        if filestore_utils.cp(corpus_archive_src, corpus_archive_dst, expect_zero=False).retcode:
-#            print(f"##### why the fuck did it not found the cycle even it did before")
-#            return (None, None, None)
-###############################################################################################
     snapshot_measurer.initialize_measurement_dirs()
     snapshot_measurer.extract_corpus(corpus_archive_dst)
     # Don't keep corpus archives around longer than they need to be.

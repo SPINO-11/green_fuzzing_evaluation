@@ -4,6 +4,7 @@ class Coverage_Matrix:
         self.matrix = []
         self.all_branches = []
         self.all_hit_counts = []
+        self.cycle = 0
 
 
     # insert the branches for the very first cycle
@@ -18,34 +19,41 @@ class Coverage_Matrix:
     # insert a branch which is not already in the coverage matrix
     # called from insert_new_cycle
     def insert_new_branch(self, branch, hit_count):
+        num_all_branches = len(self.all_branches)
+
         self.all_branches.append(branch)
         self.all_hit_counts.append(hit_count)
         self.matrix.append([])
 
-        for i in range(len(self.matrix[0]) - 1):
-            self.matrix[len(self.matrix) - 1].append(0)
+        for i in range(self.cycle):
+            self.matrix[num_all_branches].append(0)
 
-        self.matrix[len(self.matrix) - 1].append(1)
+        self.matrix[num_all_branches].append(1)
 
 
     # insert the branches of a cycle which is not the first one
     # called from outside
     def insert_new_cycle(self, branches, hit_counts):
+        self.cycle += 1
+
         # coverage error occured so it gets filled with zeros
         if branches == []:
-            for i in range(len(self.matrix)):
+            for i in range(len(self.all_branches)):
                 self.matrix[i].append(0)
             return
 
         # in the first cycle occured a coverage error
         if self.matrix == []:
             for i in range(len(branches)):
-                self.matrix.append([0])
+                self.matrix.append([])
                 self.all_branches.append(branches[i])
                 self.all_hit_counts.append(0)
+                # append so many 0s because it can be multiple errors after an error in the first cycle
+                for j in range(self.cycle):
+                    self.matrix[i].append(0)
 
         # insert the correct cycle
-        for b in range(len(self.matrix)):
+        for b in range(len(self.all_branches)):
             self.matrix[b].append(0)
 
         for i in range(len(branches)):
@@ -54,9 +62,9 @@ class Coverage_Matrix:
                 continue
             idx = self.all_branches.index(branches[i])
             if hit_counts[i] > self.all_hit_counts[idx]:
-                self.matrix[idx][len(self.matrix[0]) - 1] = 1
+                self.matrix[idx][self.cycle] = 1
                 self.all_hit_counts[idx] = hit_counts[i]
-    
+
 
     # compute and return the number of singletons and doubletons in the whole coverage matrix
     # called from the outside
@@ -89,3 +97,4 @@ class Coverage_Matrix:
             elif counter == 2:
                 doubletons += 1
         return (singletons, doubletons)
+    
