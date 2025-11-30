@@ -48,8 +48,4 @@ docker/generated.mk
 # Diff files from matplotlib
 *-failed-diff.png
 
-
-# greenfuzzing
-done_experiments
 local.db
-localaflbloaty12h5min71.db
