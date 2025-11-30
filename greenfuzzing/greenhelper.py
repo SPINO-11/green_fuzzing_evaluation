@@ -133,11 +133,8 @@ def get_covered_branches_from_summary_json(summary_json_file):
 
 
 
-
-
-
 """
-Any changes:
+All changes:
     Measurer: experiment/measurer/
         measurer_manager.py: 
             measure_manager_loop: 
